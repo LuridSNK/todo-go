@@ -100,11 +100,7 @@ func removeTodoItem(w http.ResponseWriter, r *http.Request) {
 	// remove item is not possible to do with standard net/http without making an overhead wrapper
 }
 
-<<<<<<< HEAD
 func logRequestMiddleware(logger *log.Logger) func(http.Handler) http.Handler {
-=======
-func logging(logger *log.Logger) func(http.Handler) http.Handler {
->>>>>>> 1b5ec30fd67a99dd80f70d3355490d1f5a4aa450
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
