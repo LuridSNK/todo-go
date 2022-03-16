@@ -1,9 +1,9 @@
 package todo
 
 import (
-	"encoding/json"
 	"fmt"
-	"time"
+	"todo_app/common"
+	"todo_app/store"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -19,7 +19,7 @@ func New() *App {
 	}
 }
 
-func (app *App) UseTodoEndpoints(store map[uuid.UUID]TodoItem) {
+func (app *App) UseTodoEndpoints(store *store.Store) {
 	todoGroup := app.Group("api/v1/todo")
 	{
 		todoGroup.Get("/", GetAllItems(store))
@@ -29,57 +29,89 @@ func (app *App) UseTodoEndpoints(store map[uuid.UUID]TodoItem) {
 	}
 }
 
-func GetAllItems(store map[uuid.UUID]TodoItem) func(c *fiber.Ctx) error {
+func GetAllItems(store *store.Store) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
-		keys := make([]TodoItem, 0, len(store))
-		for k := range store {
-			keys = append(keys, store[k])
-		}
-		response, err := json.Marshal(keys)
+		var todoItems []*TodoItem
+		rows, err := store.Query("select * from TodoItems")
 		if err != nil {
-			return c.SendString(fmt.Sprintf("Error: %s", err))
+			return err
+		}
+
+		for rows.Next() {
+			var i TodoItem
+			err = rows.Scan(&i.Id, &i.Description, &i.CreatedAt, &i.IsDone)
+			if err != nil {
+				return err
+			}
+			todoItems = append(todoItems, &i)
+		}
+
+		response, err := common.ToJson(todoItems)
+		if err != nil {
+			return err
 		}
 
 		return c.SendString(string(response))
 	}
 }
 
-func AddNewItem(store map[uuid.UUID]TodoItem) func(c *fiber.Ctx) error {
+func AddNewItem(store *store.Store) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
-		var i TodoItem
-		err := json.Unmarshal(c.Body(), &i)
-		i.Id = uuid.New()
-		i.CreatedAt = time.Now().UTC()
+		i, err := common.ReadJson[TodoItem](c.Body())
 		if err != nil {
-			return c.SendString(fmt.Sprintf("Error: %s", err))
+			return err
 		}
 
-		store[i.Id] = i
+		row, err := store.QueryRow("insert into TodoItems (description, isDone) values ($1, $2) returning id;", i.Description, i.IsDone)
+		if err != nil {
+			return err
+		}
 
-		return c.SendString(i.Id.String())
+		var id uuid.UUID
+		err = row.Scan(&id)
+		if err != nil {
+			return err
+		}
+
+		return c.SendString(id.String())
 	}
 }
 
-func UpdateItem(store map[uuid.UUID]TodoItem) func(c *fiber.Ctx) error {
+func UpdateItem(store *store.Store) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
-		var updatedItem TodoItem
-		if err := json.Unmarshal(c.Body(), &updatedItem); err != nil {
+		updatedItem, err := common.ReadJson[TodoItem](c.Body())
+		if err != nil {
 			c.Status(400)
-			return c.SendString(fmt.Sprintf("No such value"))
+			return c.SendString("Given json object could not be parsed")
 		}
 
-		if _, contains := store[updatedItem.Id]; !contains {
+		row, err := store.QueryRow(
+			"select exists(select 1 from TodoItems where id=$1)",
+			updatedItem.Id)
+		if err != nil {
+			return err
+		}
+		var exists bool
+		row.Scan(&exists)
+		if !exists {
 			c.Status(404)
 			return c.SendString(fmt.Sprintf("No such value"))
 		}
 
-		store[updatedItem.Id] = updatedItem
+		err = store.Execute(
+			"update TodoItems SET description = $1, isDone = $2 WHERE id = $3;",
+			updatedItem.Description,
+			updatedItem.IsDone,
+			updatedItem.Id)
+		if err != nil {
+			return err
+		}
 
 		return c.SendStatus(204)
 	}
 }
 
-func DeleteItem(store map[uuid.UUID]TodoItem) func(c *fiber.Ctx) error {
+func DeleteItem(store *store.Store) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
 		var id uuid.UUID
 		id, err := uuid.Parse(c.Params("id"))
@@ -88,11 +120,11 @@ func DeleteItem(store map[uuid.UUID]TodoItem) func(c *fiber.Ctx) error {
 			return c.SendString(fmt.Sprintf("Error occured: %s", err))
 		}
 
-		if _, contains := store[id]; !contains {
-			c.Status(404)
-			return c.SendString(fmt.Sprintf("No such value"))
+		err = store.Execute("delete from TodoItems where id = $1", id)
+		if err != nil {
+			return err
 		}
-		delete(store, id)
+
 		return c.SendStatus(204)
 	}
 }
