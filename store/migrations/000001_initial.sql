@@ -1,4 +1,4 @@
-/* use https://www.unixtimestamp.com/ for naming migrations */
+/* todo: try to utilize https://www.unixtimestamp.com/ for naming migrations ? */
 
 create table if not exists TodoItems (
     id uuid primary key default gen_random_uuid(),

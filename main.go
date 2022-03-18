@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"todo_app/app"
+	"todo_app/app/auth"
+	"todo_app/app/todo-app"
 	"todo_app/store"
-	"todo_app/todo-app"
 
 	"github.com/gofiber/fiber/v2/middleware/logger"
 )
@@ -21,7 +23,7 @@ func main() {
 	hostUrl = "localhost:5000"
 	storeUrl = "postgresql://postgres:secret@localhost"
 	migrationsOutput = "./store/migrations"
-	app := todo.New()
+	app := app.New()
 	store, err := store.New(storeUrl)
 	if err != nil {
 		fmt.Fprintf(output, "FATAL [store]: %v", err)
@@ -41,7 +43,8 @@ func main() {
 		Format:     "[${time}] ${status} - ${latency} ${method} ${path} ${body}",
 	}))
 
-	app.UseTodoEndpoints(store)
+	todo.UseEndpoints(app, store)
+	auth.UseEndpoints(app, store)
 
 	log.Fatal(app.Listen(hostUrl))
 }

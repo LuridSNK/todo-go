@@ -2,6 +2,7 @@ package todo
 
 import (
 	"fmt"
+	"todo_app/app"
 	"todo_app/common"
 	"todo_app/store"
 
@@ -9,27 +10,17 @@ import (
 	"github.com/google/uuid"
 )
 
-type App struct {
-	*fiber.App
-}
-
-func New() *App {
-	return &App{
-		App: fiber.New(),
-	}
-}
-
-func (app *App) UseTodoEndpoints(store *store.Store) {
-	todoGroup := app.Group("api/v1/todo")
+func UseEndpoints(application *app.App, store *store.Store) {
+	todoGroup := application.Group("api/v1/todo")
 	{
-		todoGroup.Get("/", GetAllItems(store))
-		todoGroup.Post("/", AddNewItem(store))
-		todoGroup.Put("/", UpdateItem(store))
-		todoGroup.Delete("/:id", DeleteItem(store))
+		todoGroup.Get("/", getAllItems(store))
+		todoGroup.Post("/", addNewItem(store))
+		todoGroup.Put("/", updateItem(store))
+		todoGroup.Delete("/:id", deleteItem(store))
 	}
 }
 
-func GetAllItems(store *store.Store) func(c *fiber.Ctx) error {
+func getAllItems(store *store.Store) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
 		var todoItems []*TodoItem
 		rows, err := store.Query("select * from TodoItems")
@@ -55,7 +46,7 @@ func GetAllItems(store *store.Store) func(c *fiber.Ctx) error {
 	}
 }
 
-func AddNewItem(store *store.Store) func(c *fiber.Ctx) error {
+func addNewItem(store *store.Store) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
 		i, err := common.ReadJson[TodoItem](c.Body())
 		if err != nil {
@@ -77,7 +68,7 @@ func AddNewItem(store *store.Store) func(c *fiber.Ctx) error {
 	}
 }
 
-func UpdateItem(store *store.Store) func(c *fiber.Ctx) error {
+func updateItem(store *store.Store) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
 		updatedItem, err := common.ReadJson[TodoItem](c.Body())
 		if err != nil {
@@ -111,7 +102,7 @@ func UpdateItem(store *store.Store) func(c *fiber.Ctx) error {
 	}
 }
 
-func DeleteItem(store *store.Store) func(c *fiber.Ctx) error {
+func deleteItem(store *store.Store) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
 		var id uuid.UUID
 		id, err := uuid.Parse(c.Params("id"))
