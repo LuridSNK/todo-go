@@ -13,9 +13,10 @@ import (
 	"github.com/google/uuid"
 )
 
-const Secret string = "secret"
+var secret string
 
-func UseEndpoints(application *app.App, store *store.Store) {
+func UseEndpoints(application *app.App, store *store.Store, s string) {
+	secret = s
 	todoGroup := application.Group("api/v1/account")
 	{
 		todoGroup.Post("/login", login(store))
@@ -61,7 +62,7 @@ func login(store *store.Store) func(c *fiber.Ctx) error {
 
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-		t, err := token.SignedString([]byte(Secret))
+		t, err := token.SignedString([]byte(secret))
 		if err != nil {
 			return c.SendStatus(500)
 		}
@@ -126,7 +127,7 @@ func register(store *store.Store) func(c *fiber.Ctx) error {
 
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-		t, err := token.SignedString([]byte(Secret))
+		t, err := token.SignedString([]byte(secret))
 		if err != nil {
 			return c.SendStatus(500)
 		}

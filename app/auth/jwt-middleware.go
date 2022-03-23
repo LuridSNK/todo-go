@@ -19,7 +19,7 @@ func JwtAuthMiddleware() func(c *fiber.Ctx) error {
 	}
 
 	jwtWare := jwtware.New(jwtware.Config{
-		SigningKey:    []byte(Secret),
+		SigningKey:    []byte(secret),
 		SigningMethod: jwtware.HS256,
 		ContextKey:    common.TokenKey,
 		ErrorHandler:  errorHandler,
