@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"strings"
 	"time"
 	"todo_app/app"
@@ -12,12 +13,13 @@ import (
 	"github.com/google/uuid"
 )
 
-const secret string = "secret"
+const Secret string = "secret"
 
 func UseEndpoints(application *app.App, store *store.Store) {
 	todoGroup := application.Group("api/v1/account")
 	{
-		todoGroup.Post("/", login(store))
+		todoGroup.Post("/login", login(store))
+		todoGroup.Post("/register", register(store))
 	}
 }
 
@@ -32,30 +34,34 @@ func login(store *store.Store) func(c *fiber.Ctx) error {
 			return err
 		}
 
-		row, err := store.QueryRow("select * from users where email = $1", l.Email)
+		row, err := store.QueryRow("select * from users where email = $1 limit 1", l.Email)
 		if err != nil {
 			return err
 		}
-		var user User
-		err = row.Scan(&user)
+		var u User
+		err = row.Scan(&u.Id, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.IsDeleted)
 		if err != nil {
-			return err
+			c.JSON(fiber.Map{
+				"error": "user not found",
+				"descr": err.Error(),
+			})
+			return c.SendStatus(404)
 		}
 
-		if !common.CheckPasswordHash(l.Password, user.PasswordHash) {
+		if !common.CheckPasswordHash(l.Password, u.PasswordHash) {
 			c.JSON(fiber.Map{"error": "credentials are incorrect"})
 			return c.SendStatus(401)
 		}
 
 		claims := jwt.MapClaims{
-			"sub":   user.Id.String(),
-			"email": user.Email,
+			"sub":   u.Id.String(),
+			"email": u.Email,
 			"exp":   time.Now().UTC().Add(time.Hour * 48).Unix(),
 		}
 
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-		t, err := token.SignedString([]byte(secret))
+		t, err := token.SignedString([]byte(Secret))
 		if err != nil {
 			return c.SendStatus(500)
 		}
@@ -86,7 +92,23 @@ func register(store *store.Store) func(c *fiber.Ctx) error {
 			return err
 		}
 
-		row, err := store.QueryRow("insert into users (email, passwordHash) values ($1, $2) returning id", l.Email, pwdHash)
+		row, err := store.QueryRow(
+			"select exists(select 1 from users where email=$1)",
+			l.Email)
+		if err != nil {
+			return err
+		}
+		var exists bool
+		row.Scan(&exists)
+		if exists {
+			c.Status(415)
+			return c.SendString(fmt.Sprintf("User exists"))
+		}
+
+		row, err = store.QueryRow(
+			"insert into users (email, passwordHash) values ($1, $2) returning id",
+			l.Email,
+			pwdHash)
 		if err != nil {
 			return err
 		}
@@ -104,7 +126,7 @@ func register(store *store.Store) func(c *fiber.Ctx) error {
 
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-		t, err := token.SignedString([]byte(secret))
+		t, err := token.SignedString([]byte(Secret))
 		if err != nil {
 			return c.SendStatus(500)
 		}

@@ -22,15 +22,16 @@ func UseEndpoints(application *app.App, store *store.Store) {
 
 func getAllItems(store *store.Store) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
+		id := common.GetUserFromContext(c)
 		var todoItems []*TodoItem
-		rows, err := store.Query("select * from TodoItems")
+		rows, err := store.Query("select * from TodoItems where creatorId = $1", id)
 		if err != nil {
 			return err
 		}
 
 		for rows.Next() {
 			var i TodoItem
-			err = rows.Scan(&i.Id, &i.Description, &i.CreatedAt, &i.IsDone)
+			err = rows.Scan(&i.Id, &i.Description, &i.CreatedAt, &i.IsDone, &i.CreatorId)
 			if err != nil {
 				return err
 			}
@@ -48,28 +49,30 @@ func getAllItems(store *store.Store) func(c *fiber.Ctx) error {
 
 func addNewItem(store *store.Store) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
+		id := common.GetUserFromContext(c)
 		i, err := common.ReadJson[TodoItem](c.Body())
 		if err != nil {
 			return err
 		}
 
-		row, err := store.QueryRow("insert into TodoItems (description, isDone) values ($1, $2) returning id;", i.Description, i.IsDone)
+		row, err := store.QueryRow("insert into TodoItems (creatorId, description, isDone) values ($1, $2, $3) returning id;", id, i.Description, i.IsDone)
 		if err != nil {
 			return err
 		}
 
-		var id uuid.UUID
-		err = row.Scan(&id)
+		var itemId string
+		err = row.Scan(&itemId)
 		if err != nil {
 			return err
 		}
 
-		return c.SendString(id.String())
+		return c.SendString(itemId)
 	}
 }
 
 func updateItem(store *store.Store) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
+		id := common.GetUserFromContext(c)
 		updatedItem, err := common.ReadJson[TodoItem](c.Body())
 		if err != nil {
 			c.Status(400)
@@ -77,8 +80,9 @@ func updateItem(store *store.Store) func(c *fiber.Ctx) error {
 		}
 
 		row, err := store.QueryRow(
-			"select exists(select 1 from TodoItems where id=$1)",
-			updatedItem.Id)
+			"select exists(select 1 from TodoItems where id=$1 and creatorId = $2)",
+			updatedItem.Id,
+			id)
 		if err != nil {
 			return err
 		}
@@ -104,14 +108,15 @@ func updateItem(store *store.Store) func(c *fiber.Ctx) error {
 
 func deleteItem(store *store.Store) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
-		var id uuid.UUID
-		id, err := uuid.Parse(c.Params("id"))
+		id := common.GetUserFromContext(c)
+		var itemId uuid.UUID
+		itemId, err := uuid.Parse(c.Params("id"))
 		if err != nil {
 			c.Status(400)
 			return c.SendString(fmt.Sprintf("Error occured: %s", err))
 		}
 
-		err = store.Execute("delete from TodoItems where id = $1", id)
+		err = store.Execute("delete from TodoItems where id = $1 and creatorId = $2", itemId, id)
 		if err != nil {
 			return err
 		}
