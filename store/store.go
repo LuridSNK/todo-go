@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 
-	//_ "github.com/jackc/pgx/stdlib"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/jackc/tern/migrate"
 )
+
+var ctx context.Context = context.Background()
 
 type Store struct {
 	*pgxpool.Pool
@@ -27,37 +27,40 @@ func new(url string) (*pgxpool.Pool, error) {
 		return nil, err
 	}
 
-	//defer pool.Close()
 	return pool, nil
 }
 
-func (s *Store) MigrateDatabase(migrationOutput string) error {
-	pool, err := s.Acquire(context.Background())
+func (s *Store) MigrateDatabase(migrationOutput string) (string, error) {
+	connectionPool, err := s.Acquire(ctx)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Unable to acquire db connection: %v\n", err))
+		return "", errors.New(fmt.Sprintf("Unable to acquire db connection: %v\n", err))
 	}
-	migrator, err := migrate.NewMigrator(context.Background(), pool.Conn(), "schema_version")
+	migrator, err := migrate.NewMigrator(ctx, connectionPool.Conn(), "schema_version")
 	if err != nil {
-		return errors.New(fmt.Sprintf("Unable to create a migrator: %v\n", err))
+		return "", errors.New(fmt.Sprintf("Unable to create a migrator: %v\n", err))
 	}
 
 	err = migrator.LoadMigrations(migrationOutput)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Unable to load migrations: %v\n", err))
+		return "", errors.New(fmt.Sprintf("Unable to load migrations: %v\n", err))
 	}
 
-	err = migrator.Migrate(context.Background())
+	err = migrator.Migrate(ctx)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Unable to migrate: %v\n", err))
+		return "", errors.New(fmt.Sprintf("Unable to migrate: %v\n", err))
 	}
 
-	ver, err := migrator.GetCurrentVersion(context.Background())
+	ver, err := migrator.GetCurrentVersion(ctx)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Unable to get current schema version: %v\n", err))
+		return "", errors.New(fmt.Sprintf("Unable to get current schema version: %v\n", err))
 	}
-	pool.Release()
-	log.Printf("Migrations are done. Current schema version: %v\n", ver)
-	return nil
+	connectionPool.Release()
+	migrationCount := len(migrator.Migrations)
+	diff := migrationCount - int(ver)
+	if diff == 0 {
+		return "Found no migrations to apply.", nil
+	}
+	return fmt.Sprintf("Migrations are done. Current schema version: %v\n", ver), nil
 }
 
 func (s *Store) Query(sql string, args ...interface{}) (pgx.Rows, error) {
