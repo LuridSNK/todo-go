@@ -1,0 +1,10 @@
+{
+    "Application" : {
+        "hostUrl" : "localhost:5000",
+        "secret" : "secret"
+    },
+    "Store" : {
+        "connectionString" : "postgresql://postgres:secret@localhost",
+        "migrationsPath" : "./store/migrations"
+    }
+}

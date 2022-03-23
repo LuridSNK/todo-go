@@ -7,25 +7,18 @@ import (
 	"todo_app/app/auth"
 	"todo_app/app/todo-app"
 	"todo_app/common"
+	"todo_app/config"
 	"todo_app/store"
 )
 
-var (
-	hostUrl          string
-	storeUrl         string
-	migrationsOutput string
-	environment      string
-)
-
 func main() {
-	// temporary setup env
-	hostUrl = "localhost:5000"
-	storeUrl = "postgresql://postgres:secret@localhost"
-	migrationsOutput = "./store/migrations"
-	environment = "development"
-
+	conf, err := config.Load()
+	if err != nil {
+		log.Fatalf("config: %v", err)
+		os.Exit(1)
+	}
 	// setup logger
-	logger, err := common.NewLogger(environment)
+	logger, err := common.NewLogger(conf.Env)
 	defer logger.Sync()
 	if err != nil {
 		log.Fatalf("logging: %v", err)
@@ -34,14 +27,14 @@ func main() {
 	logger.Info("starting the application...")
 
 	// setup pg store
-	store, err := store.New(storeUrl)
+	store, err := store.New(conf.Store.ConnString)
 	if err != nil {
 		logger.Fatalw("couldn't instantiate store", "reason", err.Error())
 		os.Exit(1)
 	}
 
 	// run migrations
-	msg, err := store.MigrateDatabase(migrationsOutput)
+	msg, err := store.MigrateDatabase(conf.Store.MigrationsPath)
 	if err != nil {
 		logger.Fatalw("couldn't run migrations", "reason", err.Error())
 		os.Exit(1)
@@ -53,13 +46,13 @@ func main() {
 
 	app.Use(common.RequestLoggingMiddleware(logger))
 
-	auth.UseEndpoints(app, store)
+	auth.UseEndpoints(app, store, conf.Application.Secret)
 
 	app.Use(auth.JwtAuthMiddleware()) // after this middleware, every request will be checked for jwt
 
 	todo.UseEndpoints(app, store)
 
-	if err = app.Listen(hostUrl); err != nil {
+	if err = app.Listen(conf.Application.HostUrl); err != nil {
 		logger.Fatalw("application failed", "reason", err.Error())
 	}
 }
