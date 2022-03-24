@@ -35,7 +35,10 @@ func (s *Store) MigrateDatabase(migrationOutput string) (string, error) {
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("Unable to acquire db connection: %v\n", err))
 	}
-	migrator, err := migrate.NewMigrator(ctx, connectionPool.Conn(), "schema_version")
+	defer connectionPool.Release()
+	conn := connectionPool.Conn()
+	defer conn.Close(ctx)
+	migrator, err := migrate.NewMigrator(ctx, conn, "schema_version")
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("Unable to create a migrator: %v\n", err))
 	}
@@ -54,7 +57,7 @@ func (s *Store) MigrateDatabase(migrationOutput string) (string, error) {
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("Unable to get current schema version: %v\n", err))
 	}
-	connectionPool.Release()
+
 	migrationCount := len(migrator.Migrations)
 	diff := migrationCount - int(ver)
 	if diff == 0 {
@@ -71,7 +74,7 @@ func (s *Store) Query(sql string, args ...interface{}) (pgx.Rows, error) {
 	}
 
 	rows, err := conn.Query(ctx, sql, args...)
-	conn.Release()
+	defer conn.Release()
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +102,7 @@ func (s *Store) Execute(sql string, args ...interface{}) error {
 		return err
 	}
 	_, err = conn.Exec(ctx, sql, args...)
-	conn.Release()
+	defer conn.Release()
 	if err != nil {
 		return err
 	}
