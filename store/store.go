@@ -95,16 +95,23 @@ func (s *Store) QueryRow(sql string, args ...interface{}) (pgx.Row, error) {
 	return row, nil
 }
 
-func (s *Store) Execute(sql string, args ...interface{}) error {
+func (s *Store) Execute(sql string, args ...interface{}) (bool, error) {
 	ctx := context.Background()
 	conn, err := s.Acquire(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
-	_, err = conn.Exec(ctx, sql, args...)
+
+	tag, err := conn.Exec(ctx, sql, args...)
 	defer conn.Release()
 	if err != nil {
-		return err
+		return false, err
 	}
-	return nil
+
+	r := tag.RowsAffected()
+	if r == 0 {
+		return false, errors.New("Not found")
+	}
+
+	return true, nil
 }
