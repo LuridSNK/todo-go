@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"todo_app/app"
-	"todo_app/common"
-	"todo_app/store"
+
+	"github.com/luridsnk/todo-go/app"
+	"github.com/luridsnk/todo-go/common"
+	"github.com/luridsnk/todo-go/store"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"

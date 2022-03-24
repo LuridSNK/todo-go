@@ -1,4 +1,4 @@
-module todo_app
+module github.com/luridsnk/todo-go
 
 go 1.18
 

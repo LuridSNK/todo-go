@@ -3,12 +3,13 @@ package main
 import (
 	"log"
 	"os"
-	"todo_app/app"
-	"todo_app/app/auth"
-	"todo_app/app/todo-app"
-	"todo_app/common"
-	"todo_app/config"
-	"todo_app/store"
+
+	"github.com/luridsnk/todo-go/app"
+	"github.com/luridsnk/todo-go/app/auth"
+	"github.com/luridsnk/todo-go/app/todo"
+	"github.com/luridsnk/todo-go/common"
+	"github.com/luridsnk/todo-go/config"
+	"github.com/luridsnk/todo-go/store"
 )
 
 func main() {
@@ -27,7 +28,7 @@ func main() {
 	logger.Info("starting the application...")
 
 	// setup pg store
-	store, err := store.New(conf.Store.ConnString)
+	store, err := store.New(conf.Store.Connection)
 	if err != nil {
 		logger.Fatalw("couldn't instantiate store", "reason", err.Error())
 		os.Exit(1)

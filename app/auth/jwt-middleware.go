@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"todo_app/common"
+	"github.com/luridsnk/todo-go/common"
 
 	"github.com/gofiber/fiber/v2"
 	jwtware "github.com/gofiber/jwt/v3"

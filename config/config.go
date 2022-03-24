@@ -19,7 +19,7 @@ type applicationConfig struct {
 }
 
 type storeConfig struct {
-	ConnString     string `json:"connectionString"`
+	Connection     string `json:"connection"`
 	MigrationsPath string `json:"migrationsPath"`
 }
 

@@ -4,7 +4,7 @@
         "secret" : "secret"
     },
     "Store" : {
-        "connectionString" : "postgresql://postgres:secret@localhost",
+        "connection" : "postgresql://postgres:secret@localhost",
         "migrationsPath" : "./store/migrations"
     }
 }
