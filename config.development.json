@@ -1,7 +1,8 @@
 {
     "Application" : {
         "hostUrl" : "localhost:5000",
-        "secret" : "secret"
+        "secret" : "secret",
+        "tokenExpiry" : 72
     },
     "Store" : {
         "connection" : "postgresql://postgres:secret@localhost",

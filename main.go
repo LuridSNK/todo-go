@@ -47,7 +47,7 @@ func main() {
 
 	app.Use(common.RequestLoggingMiddleware(logger))
 
-	auth.UseEndpoints(app, store, conf.Application.Secret)
+	auth.UseEndpoints(app, store, &conf.Application)
 
 	app.Use(auth.JwtAuthMiddleware()) // after this middleware, every request will be checked for jwt
 

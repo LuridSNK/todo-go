@@ -11,6 +11,8 @@ import (
 	"github.com/google/uuid"
 )
 
+var subKey string = "sub"
+
 func UseEndpoints(application *app.App, store *store.Store) {
 	todoGroup := application.Group("api/v1/todo")
 	{
@@ -23,7 +25,7 @@ func UseEndpoints(application *app.App, store *store.Store) {
 
 func getAllItems(store *store.Store) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
-		id := common.GetUserFromContext(c)
+		id := common.ValueFromLocals[string](c, subKey)
 		var todoItems []*TodoItem
 		rows, err := store.Query("select * from TodoItems where creatorId = $1", id)
 		if err != nil {
@@ -50,7 +52,7 @@ func getAllItems(store *store.Store) func(c *fiber.Ctx) error {
 
 func addNewItem(store *store.Store) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
-		id := common.GetUserFromContext(c)
+		id := common.ValueFromLocals[string](c, subKey)
 		i, err := common.ReadJson[TodoItem](c.Body())
 		if err != nil {
 			return err
@@ -73,7 +75,7 @@ func addNewItem(store *store.Store) func(c *fiber.Ctx) error {
 
 func updateItem(store *store.Store) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
-		id := common.GetUserFromContext(c)
+		id := common.ValueFromLocals[string](c, subKey)
 		updatedItem, err := common.ReadJson[TodoItem](c.Body())
 		if err != nil {
 			c.Status(400)
@@ -109,7 +111,7 @@ func updateItem(store *store.Store) func(c *fiber.Ctx) error {
 
 func deleteItem(store *store.Store) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
-		id := common.GetUserFromContext(c)
+		id := common.ValueFromLocals[string](c, subKey)
 		var itemId uuid.UUID
 		itemId, err := uuid.Parse(c.Params("id"))
 		if err != nil {

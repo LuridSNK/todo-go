@@ -25,6 +25,6 @@ func ToJson(data interface{}) (string, error) {
 	return string(bytes), nil
 }
 
-func GetUserFromContext(c *fiber.Ctx) string {
-	return c.Locals(TokenKey).(*jwt.Token).Claims.(jwt.MapClaims)["sub"].(string)
+func ValueFromLocals[T any](c *fiber.Ctx, key string) T {
+	return c.Locals(TokenKey).(*jwt.Token).Claims.(jwt.MapClaims)[key].(T)
 }

@@ -3,22 +3,24 @@ package config
 import (
 	"flag"
 	"fmt"
+	"time"
 
 	"github.com/spf13/viper"
 )
 
 type Config struct {
 	Env         string
-	Application applicationConfig `json:"Application"`
-	Store       storeConfig       `json:"Store"`
+	Application ApplicationConfig `json:"Application"`
+	Store       StoreConfig       `json:"Store"`
 }
 
-type applicationConfig struct {
-	HostUrl string `json:"hostUrl"`
-	Secret  string `json:"secret"`
+type ApplicationConfig struct {
+	HostUrl     string        `json:"hostUrl"`
+	Secret      string        `json:"secret"`
+	TokenExpiry time.Duration `json:"tokenExpiry"`
 }
 
-type storeConfig struct {
+type StoreConfig struct {
 	Connection     string `json:"connection"`
 	MigrationsPath string `json:"migrationsPath"`
 }

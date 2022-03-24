@@ -7,6 +7,7 @@ import (
 
 	"github.com/luridsnk/todo-go/app"
 	"github.com/luridsnk/todo-go/common"
+	"github.com/luridsnk/todo-go/config"
 	"github.com/luridsnk/todo-go/store"
 
 	"github.com/gofiber/fiber/v2"
@@ -16,9 +17,12 @@ import (
 
 var secret string
 var hasher passwordHasher = passwordHasher{}
+var tokenExp int64
 
-func UseEndpoints(application *app.App, store *store.Store, s string) {
-	secret = s
+func UseEndpoints(application *app.App, store *store.Store, appConfig *config.ApplicationConfig) {
+	secret = appConfig.Secret
+	tokenExp = time.Now().UTC().Add(time.Hour * appConfig.TokenExpiry).Unix()
+
 	todoGroup := application.Group("api/v1/account")
 	{
 		todoGroup.Post("/login", login(store))
@@ -59,7 +63,7 @@ func login(store *store.Store) func(c *fiber.Ctx) error {
 		claims := jwt.MapClaims{
 			"sub":   u.Id.String(),
 			"email": u.Email,
-			"exp":   time.Now().UTC().Add(time.Hour * 48).Unix(),
+			"exp":   tokenExp,
 		}
 
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -124,7 +128,7 @@ func register(store *store.Store) func(c *fiber.Ctx) error {
 		claims := jwt.MapClaims{
 			"sub":   id.String(),
 			"email": l.Email,
-			"exp":   time.Now().UTC().Add(time.Hour * 48).Unix(),
+			"exp":   tokenExp,
 		}
 
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
