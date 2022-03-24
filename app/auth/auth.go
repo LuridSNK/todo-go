@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/google/uuid"
 )
 
 var secret string
@@ -25,41 +23,23 @@ func UseEndpoints(application *app.App, store *store.Store, appConfig *config.Ap
 
 	todoGroup := application.Group("api/v1/account")
 	{
-		todoGroup.Post("/login", login(store))
-		todoGroup.Post("/register", register(store))
+		srv := &AuthService{store: store, hasher: &hasher}
+		todoGroup.Post("/login", login(srv))
+		todoGroup.Post("/register", register(srv))
 	}
 }
 
-func login(store *store.Store) func(c *fiber.Ctx) error {
+func login(authSrv *AuthService) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
-		type login struct {
-			Email    string `json:"email"`
-			Password string `json:"password"`
-		}
-		l, err := common.ReadJson[login](c.Body())
+		loginDto, err := common.ReadJson[LoginDto](c.Body())
 		if err != nil {
 			return err
 		}
 
-		row, err := store.QueryRow("select * from users where email = $1 limit 1", l.Email)
+		u, err := authSrv.ProcessLogin(loginDto)
 		if err != nil {
 			return err
 		}
-		var u User
-		err = row.Scan(&u.Id, &u.Email, &u.PasswordHash, &u.CreatedAt, &u.IsDeleted)
-		if err != nil {
-			c.JSON(fiber.Map{
-				"error": "user not found",
-				"descr": err.Error(),
-			})
-			return c.SendStatus(404)
-		}
-
-		if !hasher.CheckPasswordHash(l.Password, u.PasswordHash) {
-			c.JSON(fiber.Map{"error": "credentials are incorrect"})
-			return c.SendStatus(401)
-		}
-
 		claims := jwt.MapClaims{
 			"sub":   u.Id.String(),
 			"email": u.Email,
@@ -77,57 +57,27 @@ func login(store *store.Store) func(c *fiber.Ctx) error {
 	}
 }
 
-func register(store *store.Store) func(c *fiber.Ctx) error {
+func register(authSrv *AuthService) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
-		type login struct {
-			Email                string `json:"email"`
-			Password             string `json:"password"`
-			PasswordConfirmation string `json:"passwordConfirmation"`
-		}
-		l, err := common.ReadJson[login](c.Body())
+
+		reg, err := common.ReadJson[RegisterDto](c.Body())
 		if err != nil {
 			return err
 		}
 
-		if r := strings.Compare(l.Password, l.PasswordConfirmation); r != 0 {
+		if r := strings.Compare(reg.Password, reg.PasswordConfirmation); r != 0 {
 			c.JSON(fiber.Map{"error": "provided passwords don't match"})
 			return c.SendStatus(400)
 		}
 
-		pwdHash, err := hasher.HashPassword(l.Password)
-		if err != nil {
-			return err
-		}
-
-		row, err := store.QueryRow(
-			"select exists(select 1 from users where email=$1)",
-			l.Email)
-		if err != nil {
-			return err
-		}
-		var exists bool
-		row.Scan(&exists)
-		if exists {
-			c.Status(415)
-			return c.SendString(fmt.Sprintf("User exists"))
-		}
-
-		row, err = store.QueryRow(
-			"insert into users (email, passwordHash) values ($1, $2) returning id",
-			l.Email,
-			pwdHash)
-		if err != nil {
-			return err
-		}
-		var id uuid.UUID
-		err = row.Scan(&id)
+		id, err := authSrv.ProcessRegister(reg)
 		if err != nil {
 			return err
 		}
 
 		claims := jwt.MapClaims{
-			"sub":   id.String(),
-			"email": l.Email,
+			"sub":   id,
+			"email": reg.Email,
 			"exp":   tokenExp,
 		}
 
