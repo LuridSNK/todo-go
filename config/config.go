@@ -23,9 +23,6 @@ type storeConfig struct {
 	MigrationsPath string `json:"migrationsPath"`
 }
 
-type xConfig struct {
-}
-
 func Load() (*Config, error) {
 	var env string
 	flag.StringVar(&env, "env", "development", "environment")

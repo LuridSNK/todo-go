@@ -15,6 +15,7 @@ import (
 )
 
 var secret string
+var hasher passwordHasher = passwordHasher{}
 
 func UseEndpoints(application *app.App, store *store.Store, s string) {
 	secret = s
@@ -50,7 +51,7 @@ func login(store *store.Store) func(c *fiber.Ctx) error {
 			return c.SendStatus(404)
 		}
 
-		if !common.CheckPasswordHash(l.Password, u.PasswordHash) {
+		if !hasher.CheckPasswordHash(l.Password, u.PasswordHash) {
 			c.JSON(fiber.Map{"error": "credentials are incorrect"})
 			return c.SendStatus(401)
 		}
@@ -89,7 +90,7 @@ func register(store *store.Store) func(c *fiber.Ctx) error {
 			return c.SendStatus(400)
 		}
 
-		pwdHash, err := common.HashPassword(l.Password)
+		pwdHash, err := hasher.HashPassword(l.Password)
 		if err != nil {
 			return err
 		}

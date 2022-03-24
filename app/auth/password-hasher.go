@@ -1,13 +1,16 @@
-package common
+package auth
 
 import "golang.org/x/crypto/bcrypt"
 
-func HashPassword(password string) (string, error) {
+type passwordHasher struct {
+}
+
+func (h *passwordHasher) HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 15)
 	return string(bytes), err
 }
 
-func CheckPasswordHash(password, hash string) bool {
+func (h *passwordHasher) CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
