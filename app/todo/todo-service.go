@@ -16,7 +16,7 @@ type GetItemsResult struct {
 	IsDone      bool      `json:"isDone"`
 }
 
-func (todoSrv *TodoItemService) GetAllByUserId(id string) ([]*GetItemsResult, *fiber.Error) {
+func (todoSrv *TodoItemService) GetAllByUserId(id string) ([]*GetItemsResult, error) {
 	var todoItems []*GetItemsResult
 	rows, err := todoSrv.store.Query("select id, description, isDone from TodoItems where creatorId = $1", id)
 	if err != nil {
@@ -39,7 +39,7 @@ type NewItemDto struct {
 	IsDone      bool   `json:"isDone"`
 }
 
-func (todoSrv *TodoItemService) AddNewItem(userId string, newItem *NewItemDto) (string, *fiber.Error) {
+func (todoSrv *TodoItemService) AddNewItem(userId string, newItem *NewItemDto) (string, error) {
 
 	row, err := todoSrv.store.QueryRow(
 		"insert into TodoItems (creatorId, description, isDone) values ($1, $2, $3) returning id;",
@@ -64,7 +64,7 @@ type UpdateItemDto struct {
 	IsDone      bool      `json:"isDone"`
 }
 
-func (todoSrv *TodoItemService) UpdateItem(userId string, updItem *UpdateItemDto) *fiber.Error {
+func (todoSrv *TodoItemService) UpdateItem(userId string, updItem *UpdateItemDto) error {
 	row, err := todoSrv.store.QueryRow(
 		"select exists(select 1 from TodoItems where id=$1 and creatorId = $2)",
 		updItem.Id,
@@ -90,15 +90,12 @@ func (todoSrv *TodoItemService) UpdateItem(userId string, updItem *UpdateItemDto
 	return nil
 }
 
-func (todoSrv *TodoItemService) DeleteItem(userId, itemId string) *fiber.Error {
+func (todoSrv *TodoItemService) DeleteItem(userId, itemId string) error {
 	executed, err := todoSrv.store.Execute("delete from TodoItems where id = $1 and creatorId = $2",
 		itemId,
 		userId)
-	if err != nil {
-		return &fiber.Error{Message: err.Error(), Code: 500}
-	}
 	if !executed {
-		return &fiber.Error{Message: "not found", Code: 404}
+		return &fiber.Error{Message: err.Error(), Code: 404}
 	}
 
 	return nil

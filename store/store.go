@@ -10,6 +10,8 @@ import (
 	"github.com/jackc/tern/migrate"
 )
 
+const ErrorNotFound = "Entity not found"
+
 var ctx context.Context = context.Background()
 
 type Store struct {
@@ -110,7 +112,7 @@ func (s *Store) Execute(sql string, args ...interface{}) (bool, error) {
 
 	r := tag.RowsAffected()
 	if r == 0 {
-		return false, errors.New("Not found")
+		return false, errors.New(ErrorNotFound)
 	}
 
 	return true, nil
